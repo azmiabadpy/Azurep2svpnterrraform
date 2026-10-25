@@ -1,0 +1,33 @@
+@'
+# Terraform state and working directory
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+terraform.tfstate.backup
+crash.log
+crash.*.log
+
+# Terraform variable files may contain sensitive values
+*.tfvars
+*.tfvars.json
+
+# Secrets and environment files
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Local overrides
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Editor and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+'@ | Set-Content -Path .gitignore
