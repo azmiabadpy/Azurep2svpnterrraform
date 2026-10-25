@@ -63,8 +63,6 @@ jobs:
       - name: Initialize remote backend
         run: terraform init -input=false -reconfigure
 
-      - name: Remove stale Terraform lock
-        run: terraform force-unlock -force 65af4199-8cb7-a07a-c6b1-8ee66dedb317
 
       - name: Terraform Plan
         run: terraform plan -input=false
