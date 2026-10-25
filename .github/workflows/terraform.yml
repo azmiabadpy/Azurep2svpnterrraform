@@ -21,7 +21,7 @@ env:
 
 jobs:
   validate:
-    name: Terraform Format and Validate
+    name: Terraform Validate
     runs-on: ubuntu-latest
 
     steps:
@@ -31,18 +31,19 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      - name: Check formatting
+      - name: Check Terraform formatting
         run: terraform fmt -check -recursive
 
-      - name: Initialize without backend
-        run: terraform init -backend=false
+      - name: Initialize Terraform providers
+        run: terraform init -backend=false -input=false
 
-      - name: Validate configuration
+      - name: Validate Terraform configuration
         run: terraform validate
 
   plan:
     name: Terraform Plan
-    if: github.event_name == 'workflow_dispatch'
+    needs: validate
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
 
     steps:
@@ -60,17 +61,48 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Initialize remote backend
-        run: terraform init
-
-      - name: Validate configuration
-        run: terraform validate
+        run: terraform init -input=false
 
       - name: Generate Terraform plan
-        run: terraform plan -out=tfplan
+        run: terraform plan -input=false -out=tfplan
 
-      - name: Upload plan artifact
+      - name: Upload saved plan
         uses: actions/upload-artifact@v4
         with:
           name: terraform-plan
           path: tfplan
           retention-days: 1
+          if-no-files-found: error
+
+  apply:
+    name: Terraform Apply
+    needs: plan
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: terraform-production
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Login to Azure using OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Initialize remote backend
+        run: terraform init -input=false
+
+      - name: Download saved plan
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-plan
+          path: .
+
+      - name: Apply saved plan
+        run: terraform apply -input=false -auto-approve tfplan
