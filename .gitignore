@@ -8,9 +8,9 @@ terraform.tfstate.backup
 crash.log
 crash.*.log
 
-# Terraform variable files may contain sensitive values
-*.tfvars
-*.tfvars.json
+
+
+
 
 # Secrets and environment files
 .env
