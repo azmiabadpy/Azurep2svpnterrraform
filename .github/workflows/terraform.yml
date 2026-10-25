@@ -1,21 +1,56 @@
 
-name: Test Azure OIDC
+name: Azure Terraform Pipeline
 
 on:
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
   contents: read
   id-token: write
 
+env:
+  TF_IN_AUTOMATION: true
+  ARM_USE_OIDC: true
+  ARM_USE_AZUREAD: true
+  ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
 jobs:
-  test-oidc:
-    name: Verify GitHub to Azure Authentication
+  validate:
+    name: Terraform Format and Validate
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Check formatting
+        run: terraform fmt -check -recursive
+
+      - name: Initialize without backend
+        run: terraform init -backend=false
+
+      - name: Validate configuration
+        run: terraform validate
+
+  plan:
+    name: Terraform Plan
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
 
       - name: Login to Azure using OIDC
         uses: azure/login@v2
@@ -24,12 +59,18 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Verify Azure identity
-        run: |
-          az account show \
-            --query "{subscription:name, subscriptionId:id, tenantId:tenantId, user:user.name, userType:user.type}" \
-            --output table
+      - name: Initialize remote backend
+        run: terraform init
 
-      - name: Verify subscription read access
-        run: |
-          az group list --query "[].name" --output table
+      - name: Validate configuration
+        run: terraform validate
+
+      - name: Generate Terraform plan
+        run: terraform plan -out=tfplan
+
+      - name: Upload plan artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan
+          path: tfplan
+          retention-days: 1
