@@ -61,18 +61,13 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Initialize remote backend
-        run: terraform init -input=false
+        run: terraform init -input=false -reconfigure
 
-      - name: Generate Terraform plan
-        run: terraform plan -input=false -out=tfplan
+      - name: Remove stale Terraform lock
+        run: terraform force-unlock -force 65af4199-8cb7-a07a-c6b1-8ee66dedb317
 
-      - name: Upload saved plan
-        uses: actions/upload-artifact@v4
-        with:
-          name: terraform-plan
-          path: tfplan
-          retention-days: 1
-          if-no-files-found: error
+      - name: Terraform Plan
+        run: terraform plan -input=false
 
   apply:
     name: Terraform Apply
@@ -96,13 +91,7 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Initialize remote backend
-        run: terraform init -input=false
+        run: terraform init -input=false -reconfigure
 
-      - name: Download saved plan
-        uses: actions/download-artifact@v4
-        with:
-          name: terraform-plan
-          path: .
-
-      - name: Apply saved plan
-        run: terraform apply -input=false -auto-approve tfplan
+      - name: Terraform Apply
+        run: terraform apply -input=false -auto-approve
